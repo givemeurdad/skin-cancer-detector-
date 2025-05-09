@@ -1,0 +1,50 @@
+import pandas as pd
+import os
+import shutil
+
+# Load metadata
+df = pd.read_csv("/Users/tejasbhavsar/Downloads/HAM10000_metadata.csv")
+
+# Label grouping
+benign_types = ['nv', 'bkl', 'df', 'vasc']
+malignant_types = ['mel', 'bcc', 'akiec']
+
+def label_type(row):
+    if row['dx'] in benign_types:
+        return 'benign'
+    elif row['dx'] in malignant_types:
+        return 'malignant'
+    return None
+
+df['label'] = df.apply(label_type, axis=1)
+df = df[df['label'].notna()]
+
+# Combine image folders
+image_dir = "HAM10000_images"
+os.makedirs(image_dir, exist_ok=True)
+
+for folder in ['/Users/tejasbhavsar/Downloads/HAM10000_images_part_1/', '/Users/tejasbhavsar/Downloads/HAM10000_images_part_2/']:
+    for f in os.listdir(folder):
+        shutil.copy(os.path.join(folder, f), os.path.join(image_dir, f))
+
+# Output folders
+for t in ['train', 'val']:
+    for c in ['benign', 'malignant']:
+        os.makedirs(f"data/{t}/{c}", exist_ok=True)
+
+# Shuffle and split
+from sklearn.model_selection import train_test_split
+train_df, val_df = train_test_split(df, test_size=0.2, stratify=df['label'])
+
+# Copy images
+def copy_images(df, target_dir):
+    for _, row in df.iterrows():
+        filename = row['image_id'] + '.jpg'
+        label = row['label']
+        src = os.path.join(image_dir, filename)
+        dst = os.path.join(f"data/{target_dir}/{label}", filename)
+        if os.path.exists(src):
+            shutil.copy(src, dst)
+
+copy_images(train_df, 'train')
+copy_images(val_df, 'val')
